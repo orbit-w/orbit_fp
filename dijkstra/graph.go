@@ -12,22 +12,24 @@ import (
 )
 
 type IDijkstra interface {
+	//AddVertex 添加顶点
 	AddVertex(id int)
+	GetVertex(id int) (int, bool)
+
+	//AddEdge 添加边
+	AddEdge(src, dest int, weight int64) error
+	//GetEdge 获取边
+	GetEdge(src, dest int) (w int64, exist bool)
+
+	//ShortestPath 是从其中一个顶点到目标顶点的最短路径
+	ShortestPath(start, dest int) (Result, bool)
 }
 
+//Graph 加权无向图
 type Graph struct {
-	len      int
-	cap      int // 底层数据的真实容量
 	vertices []Vertex
 	visited  []bool
 	pq       *heap.Heap[int, int64]
-}
-
-type Vertex struct {
-	Id    int
-	Best  int
-	Dist  int64
-	Edges map[int]int64 //维护了相关的所有边
 }
 
 func New() IDijkstra {
@@ -49,9 +51,43 @@ func (g *Graph) AddVertex(id int) {
 	g.vertices[v.Id] = v
 }
 
-//AddEdge 无向图中添加两个结点的边
-func (g *Graph) AddEdge(v int, dest int) {
+func (g *Graph) GetVertex(id int) (vId int, exist bool) {
+	if id >= len(g.vertices) {
+		return
+	}
+	vId = g.vertices[id].Id
+	return vId, vId == id
+}
 
+//AddEdge 无向图中添加两个结点的边
+func (g *Graph) AddEdge(src, dest int, weight int64) error {
+	if !g.Exist(src) || g.Exist(dest) {
+		return ErrVertexNotFound
+	}
+
+	if src == dest {
+		return ErrVertexInvalid
+	}
+
+	vertex := &g.vertices[src]
+	if vertex.Edges == nil {
+		vertex.Edges = make(map[int]int64)
+	}
+	vertex.Edges[dest] = weight
+	return nil
+}
+
+func (g *Graph) GetEdge(src, dest int) (w int64, exist bool) {
+	if !g.Exist(src) || g.Exist(dest) {
+		return
+	}
+
+	if src == dest {
+		return
+	}
+
+	w, exist = g.vertices[src].Edges[dest]
+	return
 }
 
 func (g *Graph) ShortestPath(start, dest int) (Result, bool) {
@@ -90,6 +126,14 @@ func (g *Graph) ShortestPath(start, dest int) (Result, bool) {
 		return g.pathing(start, dest, bd), found
 	}
 	return Result{}, found
+}
+
+func (g *Graph) Exist(id int) bool {
+	if id >= len(g.vertices) {
+		return false
+	}
+	v := g.vertices[id]
+	return v.Id == id
 }
 
 func (g *Graph) prepare() {
